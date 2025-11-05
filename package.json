@@ -1,0 +1,21 @@
+{
+  "name": "rag-km-sgm",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "lint": "bunx eslint src --ext .ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/express": "^5.0.5"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "mongodb": "^6.20.0"
+  }
+}
