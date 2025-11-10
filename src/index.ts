@@ -1,47 +1,54 @@
 import express, { type Request, type Response } from "express";
-import { query } from "./query.js";
-import { insertDocuments } from "./command.js";
-import { insertFromFile } from "./load-json.js";
+import { insertOne, insertMany, insertFromJSON } from "./command";
+import { query } from "./query";
 
 const app = express();
 app.use(express.json());
 
-app.get("/health", (req: Request, res: Response) => {
-  res.json({ status: "ok" });
+const port = process.env.PORT!;
+
+app.post("/insert-one", async (req: Request, res: Response) => {
+  try {
+    await insertOne(req.body);
+    res.json({ message: "Inserted one document" });
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/insert-many", async (req: Request, res: Response) => {
+  try {
+    await insertMany(req.body);
+    res.json({ message: "Inserted many documents" });
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/insert-json", async (req: Request, res: Response) => {
+  try {
+    const { path } = req.body;
+    await insertFromJSON(path);
+    res.json({ message: `Inserted documents from ${path}` });
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post("/query", async (req: Request, res: Response) => {
-  const { text } = req.body;
-  if (!text) return res.status(400).json({ error: "Missing text" });
-
   try {
-    const results = await query(text);
-    res.json({ results });
-  } catch (err) {
-    console.error("Query error:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-app.post("/command", async (req: Request, res: Response) => {
-  try {
-    const result = await insertDocuments(req.body);
-    res.json(result);
+    const { text, topK } = req.body;
+    const results = await query(text, topK || 3);
+    res.json(results);
   } catch (err: any) {
-    console.error("Insert error:", err);
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
 
-app.post("/load-json", async (req: Request, res: Response) => {
-  try {
-    const result = await insertFromFile("joshbersin_chunked_results.json");
-    res.json(result);
-  } catch (err: any) {
-    console.error("Load JSON error:", err);
-    res.status(500).json({ error: err.message });
-  }
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
 });
-
-const port = process.env.PORT!;
-app.listen(port, () => console.log(`Server running on port ${port}`));

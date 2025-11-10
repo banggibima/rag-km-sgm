@@ -1,26 +1,37 @@
 import { MongoClient } from "mongodb";
-import { generateEmbedding } from "./embed.js";
 
 const client = new MongoClient(process.env.MONGODB_URI!);
 const dbName = process.env.DB_NAME!;
 const collectionName = process.env.COLLECTION_NAME!;
 
-export async function insertDocuments(docs: any | any[]) {
-  const collection = client.db(dbName).collection(collectionName);
-  const inputDocs = Array.isArray(docs) ? docs : [docs];
+async function connectDB() {
+  await client.connect();
+  console.log("Connected to MongoDB");
+  return client.db(dbName).collection(collectionName);
+}
 
-  const processed = [];
-  for (const doc of inputDocs) {
-    if (!doc.page_content) continue;
+export async function insertOne(doc: any) {
+  const collection = await connectDB();
+  const result = await collection.insertOne(doc);
+  console.log(`Inserted one document with _id: ${result.insertedId}`);
+}
 
-    const embedding = await generateEmbedding(doc.page_content);
-    processed.push({
-      text: doc.page_content,
-      embedding,
-      metadata: doc.metadata || {},
-    });
-  }
+export async function insertMany(docs: any[]) {
+  const collection = await connectDB();
+  const result = await collection.insertMany(docs);
+  console.log(`Inserted ${result.insertedCount} documents`);
+}
 
-  const result = await collection.insertMany(processed);
-  return { insertedCount: result.insertedCount };
+export async function insertFromJSON(filePath: string) {
+  const collection = await connectDB();
+
+  const file = Bun.file(filePath);
+  const exists = await file.exists();
+  if (!exists) throw new Error(`File not found: ${filePath}`);
+
+  const data = await file.json();
+  const docs = Array.isArray(data) ? data : [data];
+
+  const result = await collection.insertMany(docs);
+  console.log(`Inserted ${result.insertedCount} documents from ${filePath}`);
 }
