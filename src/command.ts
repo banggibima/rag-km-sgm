@@ -1,9 +1,11 @@
 import { MongoClient } from "mongodb";
 import { promises as fs } from "fs";
+import type { DocumentDTO } from "./dto/document.dto";
 
 const client = new MongoClient(process.env.MONGODB_URI!);
 const dbName = process.env.DB_NAME!;
 const collectionName = process.env.COLLECTION_NAME!;
+
 
 async function connectDB() {
   await client.connect();
@@ -11,16 +13,26 @@ async function connectDB() {
   return client.db(dbName).collection(collectionName);
 }
 
-export async function insertOne(doc: any) {
+export async function insertOne(doc: DocumentDTO) {
   const collection = await connectDB();
-  const result = await collection.insertOne(doc);
-  console.log(`Inserted one document with _id: ${result.insertedId}`);
+
+  try {
+    const result = await collection.insertOne(doc);
+    console.log(`Inserted one document with _id: ${result.insertedId}`);
+  } catch (err) {
+    console.error("Error inserting document:", (err as Error).message);
+  }
 }
 
-export async function insertMany(docs: any[]) {
+export async function insertMany(docs: DocumentDTO[]) {
   const collection = await connectDB();
-  const result = await collection.insertMany(docs);
-  console.log(`Inserted ${result.insertedCount} documents`);
+
+  try {
+    const result = await collection.insertMany(docs);
+    console.log(`Inserted ${result.insertedCount} documents`);
+  } catch (err) {
+    throw new Error(`Failed to insert documents: ${(err as Error).message}`);
+  }
 }
 
 export async function insertFromFile(filePath: string) {
