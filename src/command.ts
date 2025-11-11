@@ -1,4 +1,5 @@
 import { MongoClient } from "mongodb";
+import { promises as fs } from "fs";
 
 const client = new MongoClient(process.env.MONGODB_URI!);
 const dbName = process.env.DB_NAME!;
@@ -22,16 +23,24 @@ export async function insertMany(docs: any[]) {
   console.log(`Inserted ${result.insertedCount} documents`);
 }
 
-export async function insertFromJSON(filePath: string) {
+export async function insertFromFile(filePath: string) {
   const collection = await connectDB();
 
-  const file = Bun.file(filePath);
-  const exists = await file.exists();
-  if (!exists) throw new Error(`File not found: ${filePath}`);
+  try {
+    const fileContent = await fs.readFile(filePath, "utf-8");
+    const data = JSON.parse(fileContent);
+    const docs = Array.isArray(data) ? data : [data];
 
-  const data = await file.json();
-  const docs = Array.isArray(data) ? data : [data];
-
-  const result = await collection.insertMany(docs);
-  console.log(`Inserted ${result.insertedCount} documents from ${filePath}`);
+    const result = await collection.insertMany(docs);
+    console.log(`Inserted ${result.insertedCount} documents from file: ${filePath}`);
+  } catch (err) {
+    throw new Error(`Failed to read JSON file: ${(err as Error).message}`);
+  } finally {
+    try {
+      await fs.unlink(filePath);
+      console.log(`Deleted temporary file: ${filePath}`);
+    } catch {
+      console.warn(`Could not delete temp file: ${filePath}`);
+    }
+  }
 }

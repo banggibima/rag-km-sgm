@@ -1,11 +1,26 @@
+import "dotenv/config";
 import express, { type Request, type Response } from "express";
-import { insertOne, insertMany, insertFromJSON } from "./command";
+import fs from "fs";
+import multer from "multer";
+import path from "path";
+import { insertOne, insertMany, insertFromFile } from "./command";
 import { query } from "./query";
 
 const app = express();
 app.use(express.json());
 
 const port = process.env.PORT!;
+
+const tempDir = path.join(process.cwd(), "temp");
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir);
+}
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, tempDir),
+  filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
+});
+const upload = multer({ storage });
 
 app.post("/insert-one", async (req: Request, res: Response) => {
   try {
@@ -27,11 +42,14 @@ app.post("/insert-many", async (req: Request, res: Response) => {
   }
 });
 
-app.post("/insert-json", async (req: Request, res: Response) => {
+app.post("/upload-json", upload.single("file"), async (req: Request, res: Response) => {
   try {
-    const { path } = req.body;
-    await insertFromJSON(path);
-    res.json({ message: `Inserted documents from ${path}` });
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    await insertFromFile(req.file.path);
+    res.json({ message: `Inserted documents from ${req.file.originalname}` });
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: err.message });
